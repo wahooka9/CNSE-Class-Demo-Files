@@ -334,8 +334,26 @@ func (t *ToDo) ChangeItemDoneStatus(id int, value bool) error {
 	//in the DB (after the status is changed).  If there are any
 	//errors along the way, return them.  If everything is successful
 	//return nil at the end to indicate that the item was properly
+	err := t.loadDB()
 
-	return errors.New("ChangeItemDoneStatus() is currently not implemented")
+	if err != nil {
+		return errors.New("ChangeItemDoneStatus() LoadDB failed")
+	}
+
+	if _, ok := t.toDoMap[id]; ok {
+		temp := t.toDoMap[id]
+		temp.IsDone = true
+		t.toDoMap[id] = temp
+	} else {
+		return errors.New("ChangeItemDoneStatus() is currently not implemented")
+	}
+
+	dberr := t.saveDB()
+	if dberr != nil {
+		return errors.New("UpdateItem() saveDB failed")
+	}
+
+	return nil
 }
 
 //------------------------------------------------------------
