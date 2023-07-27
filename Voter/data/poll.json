@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "selection": [
+      "Bacon",
+      "Lettuce",
+      "Tomato"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "What Toppings do you prefer?",
+    "selection": [
+      "Bacon",
+      "Lettuce",
+      "Tomato"
+    ]
+  }
+]
