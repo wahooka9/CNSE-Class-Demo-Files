@@ -59,13 +59,20 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 	}
 
 	var id = len(t.voterMap)
-
 	var _, exists = t.voterMap[id]
 	for ok := true; ok; ok = exists { 
 		id++
 		_, exists = t.voterMap[id]
 	}
-	
+
+	if (voter.Id > 0) {
+		id = voter.Id
+		var _, exists = t.voterMap[voter.Id]
+		if true == exists { 
+			return errors.New("Voter Exists, addVoter() failed")
+		}
+	}
+
 	voter.Id = id
 	t.voterMap[id] = *voter
 
