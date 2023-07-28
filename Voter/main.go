@@ -222,7 +222,47 @@ func GetVotesHandler(w http.ResponseWriter, r *http.Request) {
 		os.Exit(1)
 	}
 
-	pollList, err := voteRepo.GetAllItems()
+	params := mux.Vars(r)
+	pollID, err := strconv.Atoi(params["poll_id"])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	pollInfo, err := voteRepo.GetPollItems(pollID)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pollInfo)
+}
+
+func GetVotesFromVoterOnPollHandler(w http.ResponseWriter, r *http.Request) {
+	vpsmutex.Lock()
+	apiVoterPollSingleCallsCounter++
+	vpsmutex.Unlock()
+
+	voteRepo, err := votes.NewVotes()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	
+	params := mux.Vars(r)
+	voterID, err := strconv.Atoi(params["voter_id"])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	pollID, err := strconv.Atoi(params["poll_id"])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	pollList, err := voteRepo.GetVoterDataOnPoll(voterID, pollID)
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
@@ -230,6 +270,7 @@ func GetVotesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pollList)
 }
+
 
 func AddVoteHandler(w http.ResponseWriter, r *http.Request) {
 	var voteToAdd votes.VoteData
@@ -284,10 +325,10 @@ func main() {
 	router.HandleFunc("/polls", AddPollHandler).Methods("POST")
 	// curl -X POST -H "Content-Type: application/json" -d '{"name":"What Toppings do you prefer?","id":30, "selection":["Bacon", "Lettuce", "Tomato"]}' http://localhost:8080/polls
 	router.HandleFunc("/polls", GetPollsHandler).Methods("GET")
-	// voters/:id/polls/:pollid
-	//router.HandleFunc("/voters", GetVotesHandler).Methods("GET")
-	router.HandleFunc("/voters/{voter_id}/polls/{poll_id}", GetVotesHandler).Methods("GET")
-	// {"1":{"1":"Bacon"},"3":{"1":"Tomato"}}   -  User 1 = voted in Poll "1" for "Bacon"  User 3 = voted in Poll "1" for "Tomato"
+	router.HandleFunc("/polls/{poll_id}", GetVotesHandler).Methods("GET")
+	// {"1":{"Bacon":[1],"Tomato":[3,4,6]}}  -  the poll and how each uer voted
+
+	router.HandleFunc("/voters/{voter_id}/polls/{poll_id}", GetVotesFromVoterOnPollHandler).Methods("GET")
 	router.HandleFunc("/voters/{voter_id}/polls/{poll_id}", AddVoteHandler).Methods("POST")
 	//curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/votes
 

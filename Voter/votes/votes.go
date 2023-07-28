@@ -47,6 +47,7 @@ func (t *VotesData) AddItem(voter VoteData) error {
 		return errors.New("addVote() LoadDB failed")
 	}
 
+	// some of these are redundant checks 
 	if ! contains(t.VoterVotedData[voter.PollID], voter.VoterID) {
 
 		var _, exists = t.VoterVotedData[voter.PollID]
@@ -88,14 +89,45 @@ func (t *VotesData) AddItem(voter VoteData) error {
 }
 
 
-func (t *VotesData) GetAllItems() (VoterPollData, error) {
+func (t *VotesData) GetAllItems() (PollResponsesData, error) {
 	err := t.loadDB()
 	if err != nil {
-		return VoterPollData{}, errors.New("GetAllItems() LoadDB failed")
+		return PollResponsesData{}, errors.New("GetAllItems() LoadDB failed")
 	}
 
-	return t.FullVoterResultsData, nil
+	return t.FullPollResultsData, nil
 }
+
+func (t *VotesData) GetPollItems(id int) (ResponsesVoterData, error) {
+	err := t.loadDB()
+
+	if err != nil {
+		return ResponsesVoterData{}, errors.New("GetItem() LoadDB failed")
+	}
+
+	if _, ok := t.FullPollResultsData[id]; ok {
+		return t.FullPollResultsData[id], nil
+	}
+
+	return ResponsesVoterData{}, errors.New("Voter not found")
+}
+
+func (t *VotesData) GetVoterDataOnPoll(voter_id int, poll_id int) (string, error) {
+	err := t.loadDB()
+
+	if err != nil {
+		return "", errors.New("GetItem() LoadDB failed")
+	}
+
+	if _, ok := t.FullVoterResultsData[voter_id][poll_id]; ok {
+		return t.FullVoterResultsData[voter_id][poll_id], nil
+	}
+
+	return "", errors.New("Voter not found")
+}
+
+
+
 
 func (t *VotesData) GetItem(id int) (VoterPollResponsData, error) {
 	err := t.loadDB()

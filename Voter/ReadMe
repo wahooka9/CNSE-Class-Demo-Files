@@ -1,3 +1,39 @@
 ReadMe
 
+To run the code you need
 go get -u github.com/gorilla/mux
+
+To add a voter
+curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe" }' http://localhost:8080/voters
+curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe" }' http://localhost:8080/voters/12
+
+The voters/{id} will force the ID to the parameter provided.  if no ID is provided then it auto assigns an ID
+
+
+Add a poll
+curl -X POST -H "Content-Type: application/json" -d '{"name":"What Toppings do you prefer?", "selection":["Bacon", "Lettuce", "Tomato"]}' http://localhost:8080/polls
+
+Have a user Vote
+curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/votes 
+
+Get all of the voters
+http://localhost:8080/voters
+
+Get the information on the user including their votes
+http://localhost:8080/voters/{id}
+
+Get a list of the polls
+http://localhost:8080/polls
+
+Get polls vote result data
+http://localhost:8080/polls/{id}
+
+Get a Voter's vote on a specific poll
+http://localhost:8080/voters/{voter_id}/polls/{poll_id}
+
+
+
+
+NONE OF THE CALLS ARE "SAFE" -  The API does not verify that a voter exists before they can vote,  there is no verification that a poll exists before a vote can be cast on it, and there is no validation of the vote casted to if it is acceptable,   
+
+
