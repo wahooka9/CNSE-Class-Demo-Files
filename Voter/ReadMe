@@ -31,7 +31,8 @@ http://localhost:8080/polls/{id}
 Get a Voter's vote on a specific poll
 http://localhost:8080/voters/{voter_id}/polls/{poll_id}
 
-
+Get Health of the API
+http://localhost:8080/health
 
 
 NONE OF THE CALLS ARE "SAFE" -  The API does not verify that a voter exists before they can vote,  there is no verification that a poll exists before a vote can be cast on it, and there is no validation of the vote casted to if it is acceptable,   
