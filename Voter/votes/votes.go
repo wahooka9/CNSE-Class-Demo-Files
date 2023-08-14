@@ -163,6 +163,9 @@ func NewVotes() (*VotesData, error) {
 	return votes, nil
 }
 
+
+
+
 func initDB(dbFileName string) error {
 	f, err := os.Create(dbFileName)
 	if err != nil {

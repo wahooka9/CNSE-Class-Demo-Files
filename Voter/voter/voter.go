@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"errors"
+	"drexel.edu/voter/repository"
 )
 
 type VoterItem struct {
@@ -85,6 +86,7 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 }
 
 func (t *Voter) GetAllItems() ([]VoterItem, error) {
+	testRepo()
 	err := t.loadDB()
 	if err != nil {
 		return nil, errors.New("GetAllItems() LoadDB failed")
@@ -105,11 +107,9 @@ func (t *Voter) GetItem(id int) (VoterItem, error) {
 	if err != nil {
 		return VoterItem{}, errors.New("GetItem() LoadDB failed")
 	}
-
 	if _, ok := t.voterMap[id]; ok {
 		return t.voterMap[id], nil
 	}
-
 	return VoterItem{}, errors.New("Voter not found")
 }
 
@@ -123,6 +123,9 @@ func (t *Voter) JsonToVoter(jsonString string) (VoterItem, error) {
 	return voter, nil
 }
 
+func testRepo() {
+	repository.GetValueForKey("test")
+}
 
 func (t *Voter) saveDB() error {
 	var voterList []VoterItem
