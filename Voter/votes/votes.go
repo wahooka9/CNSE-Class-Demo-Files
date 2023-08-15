@@ -8,20 +8,20 @@ import (
 )
 
 type VoteData struct {
-	VoterID int `json:"voter_id"`
-	PollID int `json:"poll_id"`
+	VoterID int64 `json:"voter_id"`
+	PollID int64 `json:"poll_id"`
 	Selection string `json:"response"`
 }
 
 
-type ResponsesVoterData map[string][]int
-type PollResponsesData map[int]ResponsesVoterData
+type ResponsesVoterData map[string][]int64
+type PollResponsesData map[int64]ResponsesVoterData
 
-type VoterPollResponsData map[int]string
-type VoterPollData map[int]VoterPollResponsData
+type VoterPollResponsData map[int64]string
+type VoterPollData map[int64]VoterPollResponsData
 
 
-type HasVotedData map[int][]int 
+type HasVotedData map[int64][]int64 
 
 type VotesData struct {
 	VoterVotedData    HasVotedData `json:"has_vote_data"`
@@ -32,7 +32,7 @@ type VotesData struct {
 
 
 
-func contains(s []int, e int) bool {
+func contains(s []int64, e int64) bool {
     for _, a := range s {
         if a == e {
             return true
@@ -52,23 +52,23 @@ func (t *VotesData) AddItem(voter VoteData) error {
 
 		var _, exists = t.VoterVotedData[voter.PollID]
 		if exists == false { 
-		 	t.VoterVotedData[voter.PollID] = []int{}
+		 	t.VoterVotedData[voter.PollID] = []int64{}
 		}
 
 		_, exists = t.FullPollResultsData[voter.PollID]
 		if exists == false { 
 			t.FullPollResultsData = make(PollResponsesData)
-			t.FullPollResultsData[voter.PollID] = map[string][]int{}
+			t.FullPollResultsData[voter.PollID] = map[string][]int64{}
 		}
 
 		_, exists = t.FullPollResultsData[voter.PollID][voter.Selection]
 		if exists == false { 
-		 	t.FullPollResultsData[voter.PollID][voter.Selection] = []int{}
+		 	t.FullPollResultsData[voter.PollID][voter.Selection] = []int64{}
 		}
 
 		_, exists = t.FullVoterResultsData[voter.VoterID]
 		if exists == false { 
-		 	t.FullVoterResultsData[voter.VoterID] = map[int]string{}
+		 	t.FullVoterResultsData[voter.VoterID] = map[int64]string{}
 		}
 
 		_, exists = t.FullVoterResultsData[voter.VoterID][voter.PollID]
@@ -98,7 +98,7 @@ func (t *VotesData) GetAllItems() (PollResponsesData, error) {
 	return t.FullPollResultsData, nil
 }
 
-func (t *VotesData) GetPollItems(id int) (ResponsesVoterData, error) {
+func (t *VotesData) GetPollItems(id int64) (ResponsesVoterData, error) {
 	err := t.loadDB()
 
 	if err != nil {
@@ -112,7 +112,7 @@ func (t *VotesData) GetPollItems(id int) (ResponsesVoterData, error) {
 	return ResponsesVoterData{}, errors.New("Voter not found")
 }
 
-func (t *VotesData) GetVoterDataOnPoll(voter_id int, poll_id int) (string, error) {
+func (t *VotesData) GetVoterDataOnPoll(voter_id int64, poll_id int64) (string, error) {
 	err := t.loadDB()
 
 	if err != nil {
@@ -129,7 +129,7 @@ func (t *VotesData) GetVoterDataOnPoll(voter_id int, poll_id int) (string, error
 
 
 
-func (t *VotesData) GetItem(id int) (VoterPollResponsData, error) {
+func (t *VotesData) GetItem(id int64) (VoterPollResponsData, error) {
 	err := t.loadDB()
 
 	if err != nil {

@@ -7,12 +7,12 @@ import (
 )
 
 type PollItem struct {
-	Id     int    `json:"id"`
+	Id     int64    `json:"id"`
 	Name  string `json:"name"`
 	Selections []string `json:"selection"`
 }
 
-type DbMap map[int]PollItem
+type DbMap map[int64]PollItem
 
 type Poll struct {
 	pollMap    DbMap
@@ -29,7 +29,7 @@ func New() (*Poll, error) {
 	}
 
 	poll := &Poll{
-		pollMap:    make(map[int]PollItem),
+		pollMap:    make(map[int64]PollItem),
 		dbFileName: dbFile,
 	}
 
@@ -59,7 +59,7 @@ func (t *Poll) AddItem(poll *PollItem) error {
 		return errors.New("addpoll() LoadDB failed")
 	}
 
-	var id = len(t.pollMap)
+	var id = int64(len(t.pollMap))
 
 	var _, exists = t.pollMap[id]
 	for ok := true; ok; ok = exists { 

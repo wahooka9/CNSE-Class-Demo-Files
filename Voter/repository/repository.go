@@ -3,14 +3,19 @@ package repository
 import (
     "context"
     "fmt"
+    "os"
     "github.com/redis/go-redis/v9"
     "errors"
 )
 
 
 func createReddisClient() (*redis.Client, error) {
+    redisURL := os.Getenv("REDIS_URL")
+    if redisURL == "" {
+        redisURL = "localhost:6379"
+    }
 	LocalReddisCilent := redis.NewClient(&redis.Options{
-        Addr:     "localhost:6379", // Replace with the appropriate host and port
+        Addr:     redisURL, // Replace with the appropriate host and port
         Password: "",              // No password if you haven't set one
         DB:       0,               // Default DB
     })
@@ -24,7 +29,7 @@ func createReddisClient() (*redis.Client, error) {
     return LocalReddisCilent, nil
 }
 
-func setValueForKey(key string, data string) bool {
+func SetValueForKey(key string, data []byte) bool {
 	LocalReddisCilent, err := createReddisClient()
 	if err != nil {
 		fmt.Println(err)
@@ -40,7 +45,8 @@ func setValueForKey(key string, data string) bool {
     return true
 }
 
-func GetValueForKey(key string) {
+func GetValueForKey(key string) (string, error) {
+    fmt.Println("start work")
     LocalReddisCilent, err := createReddisClient()
     if err != nil {
         fmt.Println(err)
@@ -52,4 +58,6 @@ func GetValueForKey(key string) {
         panic(err)
     }
     fmt.Println(key, val)
+    fmt.Println("work work")
+    return val, nil
 }

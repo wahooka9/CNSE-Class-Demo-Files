@@ -5,15 +5,29 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"flag"
 	"os"
 	"strconv"
 	"sync"
 	"time"
-	"github.com/gorilla/mux"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"drexel.edu/voter/voter"
 	"drexel.edu/voter/poll"
 	"drexel.edu/voter/votes"
 )
+
+var (
+	hostFlag string
+	portFlag uint
+)
+
+func processCmdLineFlags() {
+	flag.StringVar(&hostFlag, "h", "0.0.0.0", "Listen on all interfaces")
+	flag.UintVar(&portFlag, "p", 1080, "Default Port")
+
+	flag.Parse()
+}
 
 var apiCallsCounter int
 var mutex sync.Mutex
@@ -40,7 +54,7 @@ func countAPICalls(next http.Handler) http.Handler {
 	})
 }
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func healthCheckHandler(c *gin.Context) {
 	mutex.Lock()
 	count := apiCallsCounter
 	mutex.Unlock()
@@ -73,21 +87,17 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 	healthRecordJSON, err := json.MarshalIndent(healthRecord, "", "  ")
 	if err != nil {
-		http.Error(w, "Failed to generate health record JSON.", http.StatusInternalServerError)
+		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(healthRecordJSON)
+	//w.Header().Set("Content-Type", "application/json")
+	//w.Write(healthRecordJSON)
+	c.JSON(http.StatusOK, healthRecordJSON)
 }
 
-func AddVoterHandler(w http.ResponseWriter, r *http.Request) {
+func AddVoterHandler(c *gin.Context) {
 	var voterToAdd voter.VoterItem
-	err := json.NewDecoder(r.Body).Decode(&voterToAdd)
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
 
 	voterRepo, err := voter.New()
 	if err != nil {
@@ -95,22 +105,25 @@ func AddVoterHandler(w http.ResponseWriter, r *http.Request) {
 		os.Exit(1)
 	}
 
-	params := mux.Vars(r)
-	voterID, err := strconv.Atoi(params["id"])
-	if err == nil {
-		voterToAdd.Id = voterID
+	if err := c.ShouldBindJSON(&voterToAdd); err != nil {
+		log.Println("Error binding JSON: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
 	if err := voterRepo.AddItem(&voterToAdd); err != nil {
 		fmt.Println("Error: ", err)
+		log.Println("Error adding item: ", err)
+		c.AbortWithStatus(http.StatusConflict)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(voterToAdd)
+	//w.Header().Set("Content-Type", "application/json")
+	//json.NewEncoder(w).Encode(voterToAdd)
+	c.JSON(http.StatusOK, voterToAdd)
 }
 
 
-func GetVotersHandler(w http.ResponseWriter, r *http.Request) {
+func GetVotersHandler(c *gin.Context) {
 		vmutex.Lock()
 		apiVotersCallsCounter++
 		vmutex.Unlock()
@@ -125,31 +138,22 @@ func GetVotersHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: ", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(voterList)
+	//w.Header().Set("Content-Type", "application/json")
+	//json.NewEncoder(w).Encode(voterList)
+	c.JSON(http.StatusOK, voterList)
 }
 
-func GetVotersByIDHandler(w http.ResponseWriter, r *http.Request) {
+func GetVotersByIDHandler(c *gin.Context) {
 		vsmutex.Lock()
 		apiVotersSinglsCallsCounter++
 		vsmutex.Unlock()
 
-	params := mux.Vars(r)
-	voterID, err := strconv.Atoi(params["id"])
+	idS := c.Param("id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	voteRepo, err := votes.NewVotes()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	v, err := voteRepo.GetItem(voterID)
-	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
 	voterRepo, err := voter.New()
@@ -165,18 +169,14 @@ func GetVotersByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	tempMap := make(map[string]interface{})
 	tempMap["VoterInfo"] = d
-	tempMap["Votes"] = v
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tempMap)
+	//tempMap["Votes"] = v
+	//w.Header().Set("Content-Type", "application/json")
+	//json.NewEncoder(w).Encode(tempMap)
+	c.JSON(http.StatusOK, tempMap)
 }
 
-func AddPollHandler(w http.ResponseWriter, r *http.Request) {
+func AddPollHandler(c *gin.Context) {
 	var pollToAdd poll.PollItem
-	err := json.NewDecoder(r.Body).Decode(&pollToAdd)
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
 
 	pollRepo, err := poll.New()
 	if err != nil {
@@ -184,18 +184,28 @@ func AddPollHandler(w http.ResponseWriter, r *http.Request) {
 		os.Exit(1)
 	}
 
-	if err := pollRepo.AddItem(&pollToAdd); err != nil {
-		fmt.Println("Error: ", err)
+	if err := c.ShouldBindJSON(&pollToAdd); err != nil {
+		log.Println("Error binding JSON: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pollToAdd)
+	if err := pollRepo.AddItem(&pollToAdd); err != nil {
+		fmt.Println("Error: ", err)
+		log.Println("Error adding item: ", err)
+		c.AbortWithStatus(http.StatusConflict)
+	}
+
+	//w.Header().Set("Content-Type", "application/json")
+	//json.NewEncoder(w).Encode(pollToAdd)
+	c.JSON(http.StatusOK, pollToAdd)
 }
 
-func GetPollsHandler(w http.ResponseWriter, r *http.Request) {
-		pmutex.Lock()
-		apiPollsCallsCounter++
-		pmutex.Unlock()
+func GetPollsHandler(c *gin.Context) {
+	pmutex.Lock()
+	apiPollsCallsCounter++
+	pmutex.Unlock()
+
 	pollRepo, err := poll.New()
 	if err != nil {
 		fmt.Println(err)
@@ -207,11 +217,12 @@ func GetPollsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: ", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pollList)
+	//w.Header().Set("Content-Type", "application/json")
+	//json.NewEncoder(w).Encode(pollList)
+	c.JSON(http.StatusOK, pollList)
 }
 
-func GetVotesHandler(w http.ResponseWriter, r *http.Request) {
+func GetVotesHandler(c *gin.Context) {
 	vpsmutex.Lock()
 	apiVoterPollSingleCallsCounter++
 	vpsmutex.Unlock()
@@ -222,11 +233,12 @@ func GetVotesHandler(w http.ResponseWriter, r *http.Request) {
 		os.Exit(1)
 	}
 
-	params := mux.Vars(r)
-	pollID, err := strconv.Atoi(params["poll_id"])
+	idS := c.Param("poll_id")
+	pollID, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
 	pollInfo, err := voteRepo.GetPollItems(pollID)
@@ -234,11 +246,10 @@ func GetVotesHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: ", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pollInfo)
+	c.JSON(http.StatusOK, pollInfo)
 }
 
-func GetVotesFromVoterOnPollHandler(w http.ResponseWriter, r *http.Request) {
+func GetVotesFromVoterOnPollHandler(c *gin.Context) {
 	vpsmutex.Lock()
 	apiVoterPollSingleCallsCounter++
 	vpsmutex.Unlock()
@@ -249,17 +260,20 @@ func GetVotesFromVoterOnPollHandler(w http.ResponseWriter, r *http.Request) {
 		os.Exit(1)
 	}
 	
-	params := mux.Vars(r)
-	voterID, err := strconv.Atoi(params["voter_id"])
+	idS := c.Param("id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
-	pollID, err := strconv.Atoi(params["poll_id"])
+	idP := c.Param("poll_id")
+	pollID, err := strconv.ParseInt(idP, 10, 32)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
 	pollList, err := voteRepo.GetVoterDataOnPoll(voterID, pollID)
@@ -267,27 +281,32 @@ func GetVotesFromVoterOnPollHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: ", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pollList)
+	c.JSON(http.StatusOK, pollList)
 }
 
 
-func AddVoteHandler(w http.ResponseWriter, r *http.Request) {
+func AddVoteHandler(c *gin.Context) {
 	var voteToAdd votes.VoteData
-	params := mux.Vars(r)
-	voterID, err := strconv.Atoi(params["voter_id"])
+
+	idS := c.Param("voter_id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	pollID, err := strconv.Atoi(params["poll_id"])
+
+	idP := c.Param("poll_id")
+	pollID, err := strconv.ParseInt(idP, 10, 32)
 	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	err = json.NewDecoder(r.Body).Decode(&voteToAdd)
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+
+	if err := c.ShouldBindJSON(&voteToAdd); err != nil {
+		log.Println("Error binding JSON: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
@@ -305,39 +324,39 @@ func AddVoteHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: ", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode("success")
+	c.JSON(http.StatusOK, voteToAdd)
 }
 
 
 
 func main() {
-	router := mux.NewRouter()
 
-	// Register the API endpoints.
-	router.HandleFunc("/voters", AddVoterHandler).Methods("POST")
-	router.HandleFunc("/voters/{id}", AddVoterHandler).Methods("POST")
-	// curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe","id":30}' http://localhost:8080/voters
-	// curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe" }' http://localhost:8080/voters/12
-	router.HandleFunc("/voters", GetVotersHandler).Methods("GET")
-	router.HandleFunc("/voters/{id}", GetVotersByIDHandler).Methods("GET")
-	
-	router.HandleFunc("/polls", AddPollHandler).Methods("POST")
-	// curl -X POST -H "Content-Type: application/json" -d '{"name":"What Toppings do you prefer?","id":30, "selection":["Bacon", "Lettuce", "Tomato"]}' http://localhost:8080/polls
-	router.HandleFunc("/polls", GetPollsHandler).Methods("GET")
-	router.HandleFunc("/polls/{poll_id}", GetVotesHandler).Methods("GET")
-	// {"1":{"Bacon":[1],"Tomato":[3,4,6]}}  -  the poll and how each uer voted
+	processCmdLineFlags()
+	r := gin.Default()
+	r.Use(cors.Default())
 
-	router.HandleFunc("/voters/{voter_id}/polls/{poll_id}", GetVotesFromVoterOnPollHandler).Methods("GET")
-	router.HandleFunc("/voters/{voter_id}/polls/{poll_id}", AddVoteHandler).Methods("POST")
-	//curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/votes
+	r.GET("/voters", GetVotersHandler)
+	r.POST("/voters", AddVoterHandler)
+	r.POST("/voters/:id", AddVoterHandler)
+	r.GET("/voters/:id", GetVotersByIDHandler)
 
-	router.HandleFunc("/health", healthCheckHandler).Methods("GET")
-	router.Use(countAPICalls)
-	// Start the server on port 8080.
-	log.Println("Server listening on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	r.GET("/polls", GetPollsHandler)
+	r.POST("/polls", AddPollHandler)
 
+	r.GET("/polls/:id", GetVotesHandler)
+	r.GET("/voters/:id/polls/:poll_id", GetVotesFromVoterOnPollHandler)
+	r.POST("/voters/:id/polls/:poll_id", AddVoteHandler)
+
+	r.GET("/health", healthCheckHandler)
+
+	//We will now show a common way to version an API and add a new
+	//version of an API handler under /v2.  This new API will support
+	//a path parameter to search for todos based on a status
+	//v2 := r.Group("/v2")
+	//v2.GET("/todo", apiHandler.ListSelectTodos)
+
+	serverPath := fmt.Sprintf("%s:%d", hostFlag, portFlag)
+	r.Run(serverPath)
 
 }
 

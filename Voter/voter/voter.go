@@ -2,17 +2,17 @@ package voter
 
 import (
 	"encoding/json"
-	"os"
+	//"os"
 	"errors"
 	"drexel.edu/voter/repository"
 )
 
 type VoterItem struct {
-	Id     int    `json:"id"`
+	Id     int64    `json:"id"`
 	Name  string `json:"name"`
 }
 
-type DbMap map[int]VoterItem
+type DbMap map[int64]VoterItem
 
 type Voter struct {
 	voterMap    DbMap
@@ -21,35 +21,19 @@ type Voter struct {
 
 func New() (*Voter, error) {
 	var dbFile = "./data/voter.json"
-	if _, err := os.Stat(dbFile); err != nil {
-		err := initDB(dbFile)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if _, err := os.Stat(dbFile); err != nil {
+	// 	err := initDB(dbFile)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	voter := &Voter{
-		voterMap:    make(map[int]VoterItem),
+		voterMap:    make(map[int64]VoterItem),
 		dbFileName: dbFile,
 	}
 
 	return voter, nil
-}
-
-func initDB(dbFileName string) error {
-	f, err := os.Create(dbFileName)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write([]byte("[]"))
-	if err != nil {
-		return err
-	}
-
-	f.Close()
-
-	return nil
 }
 
 func (t *Voter) AddItem(voter *VoterItem) error {
@@ -59,7 +43,7 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 		return errors.New("addVoter() LoadDB failed")
 	}
 
-	var id = len(t.voterMap)
+	var id = int64(len(t.voterMap))
 	var _, exists = t.voterMap[id]
 	for ok := true; ok; ok = exists { 
 		id++
@@ -86,7 +70,6 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 }
 
 func (t *Voter) GetAllItems() ([]VoterItem, error) {
-	testRepo()
 	err := t.loadDB()
 	if err != nil {
 		return nil, errors.New("GetAllItems() LoadDB failed")
@@ -97,11 +80,10 @@ func (t *Voter) GetAllItems() ([]VoterItem, error) {
 	for _, value := range t.voterMap {
 		v = append(v, value)
 	}
-
 	return v, nil
 }
 
-func (t *Voter) GetItem(id int) (VoterItem, error) {
+func (t *Voter) GetItem(id int64) (VoterItem, error) {
 	err := t.loadDB()
 
 	if err != nil {
@@ -123,8 +105,58 @@ func (t *Voter) JsonToVoter(jsonString string) (VoterItem, error) {
 	return voter, nil
 }
 
-func testRepo() {
-	repository.GetValueForKey("test")
+func (t *Voter) saveDB() error {
+	var voterList []VoterItem
+	for _, item := range t.voterMap {
+		voterList = append(voterList, item)
+	}
+	data, err := json.MarshalIndent(voterList, "", "  ")
+	if err != nil {
+		return err
+	}
+	repository.SetValueForKey(t.dbFileName, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
+func (t *Voter) loadDB() error {
+	data, err := repository.GetValueForKey(t.dbFileName)
+	if err != nil {
+		return err
+	}
+	//print(string(data))
+	var voterList []VoterItem
+
+	err = json.Unmarshal([]byte(data), &voterList)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range voterList {
+		t.voterMap[item.Id] = item
+	}
+
+	return nil
+}
+
+/*
+func initDB(dbFileName string) error {
+	f, err := os.Create(dbFileName)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write([]byte("[]"))
+	if err != nil {
+		return err
+	}
+
+	f.Close()
+
+	return nil
 }
 
 func (t *Voter) saveDB() error {
@@ -162,3 +194,5 @@ func (t *Voter) loadDB() error {
 
 	return nil
 }
+*/
+	

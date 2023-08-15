@@ -1,0 +1,1 @@
+docker build --tag voter:v1  -f ./dockerfile .
