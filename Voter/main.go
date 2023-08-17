@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -85,246 +84,96 @@ func healthCheckHandler(c *gin.Context) {
 		"apiCalls": count, // Include the API call count in the health record.
 	}
 
-	healthRecordJSON, err := json.MarshalIndent(healthRecord, "", "  ")
-	if err != nil {
-		c.AbortWithStatus(http.StatusConflict)
-		return
-	}
-
-	//w.Header().Set("Content-Type", "application/json")
-	//w.Write(healthRecordJSON)
-	c.JSON(http.StatusOK, healthRecordJSON)
-}
-
-func AddVoterHandler(c *gin.Context) {
-	var voterToAdd voter.VoterItem
-
-	voterRepo, err := voter.New()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	if err := c.ShouldBindJSON(&voterToAdd); err != nil {
-		log.Println("Error binding JSON: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	if err := voterRepo.AddItem(&voterToAdd); err != nil {
-		fmt.Println("Error: ", err)
-		log.Println("Error adding item: ", err)
-		c.AbortWithStatus(http.StatusConflict)
-	}
-
-	//w.Header().Set("Content-Type", "application/json")
-	//json.NewEncoder(w).Encode(voterToAdd)
-	c.JSON(http.StatusOK, voterToAdd)
-}
-
-
-func GetVotersHandler(c *gin.Context) {
-		vmutex.Lock()
-		apiVotersCallsCounter++
-		vmutex.Unlock()
-	voterRepo, err := voter.New()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	voterList, err := voterRepo.GetAllItems()
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-
-	//w.Header().Set("Content-Type", "application/json")
-	//json.NewEncoder(w).Encode(voterList)
-	c.JSON(http.StatusOK, voterList)
+	c.JSON(http.StatusOK, healthRecord)
 }
 
 func GetVotersByIDHandler(c *gin.Context) {
-		vsmutex.Lock()
-		apiVotersSinglsCallsCounter++
-		vsmutex.Unlock()
-
-	idS := c.Param("id")
-	voterID, err := strconv.ParseInt(idS, 10, 32)
+	voterRepo, err := voter.New()
 	if err != nil {
-		log.Println("Error converting id to int64: ", err)
+		log.Println("Error creating voter object: ", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	voterRepo, err := voter.New()
+	voterInto, err := voterRepo.GetVoterByID(c)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Println("Error getting voter information: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return 
 	}
 
-	d, err := voterRepo.GetItem(voterID)
+	votesRepo, err := votes.NewVotes()
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Println("Error creating votes object: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
+
+	voterVotes, err := votesRepo.GetVoterVotesByID(c)
+	if err != nil {
+		log.Println("Error getting votes: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
 	}
 
 	tempMap := make(map[string]interface{})
-	tempMap["VoterInfo"] = d
-	//tempMap["Votes"] = v
-	//w.Header().Set("Content-Type", "application/json")
-	//json.NewEncoder(w).Encode(tempMap)
+	tempMap["VoterInfo"] = voterInto
+	tempMap["Votes"] = voterVotes
+
 	c.JSON(http.StatusOK, tempMap)
 }
 
-func AddPollHandler(c *gin.Context) {
-	var pollToAdd poll.PollItem
-
-	pollRepo, err := poll.New()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	if err := c.ShouldBindJSON(&pollToAdd); err != nil {
-		log.Println("Error binding JSON: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	if err := pollRepo.AddItem(&pollToAdd); err != nil {
-		fmt.Println("Error: ", err)
-		log.Println("Error adding item: ", err)
-		c.AbortWithStatus(http.StatusConflict)
-	}
-
-	//w.Header().Set("Content-Type", "application/json")
-	//json.NewEncoder(w).Encode(pollToAdd)
-	c.JSON(http.StatusOK, pollToAdd)
-}
-
-func GetPollsHandler(c *gin.Context) {
-	pmutex.Lock()
-	apiPollsCallsCounter++
-	pmutex.Unlock()
-
-	pollRepo, err := poll.New()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	pollList, err := pollRepo.GetAllItems()
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-
-	//w.Header().Set("Content-Type", "application/json")
-	//json.NewEncoder(w).Encode(pollList)
-	c.JSON(http.StatusOK, pollList)
-}
-
-func GetVotesHandler(c *gin.Context) {
-	vpsmutex.Lock()
-	apiVoterPollSingleCallsCounter++
-	vpsmutex.Unlock()
-
-	voteRepo, err := votes.NewVotes()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	idS := c.Param("poll_id")
-	pollID, err := strconv.ParseInt(idS, 10, 32)
-	if err != nil {
-		log.Println("Error converting id to int64: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	pollInfo, err := voteRepo.GetPollItems(pollID)
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-
-	c.JSON(http.StatusOK, pollInfo)
-}
-
-func GetVotesFromVoterOnPollHandler(c *gin.Context) {
-	vpsmutex.Lock()
-	apiVoterPollSingleCallsCounter++
-	vpsmutex.Unlock()
-
-	voteRepo, err := votes.NewVotes()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	
-	idS := c.Param("id")
-	voterID, err := strconv.ParseInt(idS, 10, 32)
-	if err != nil {
-		log.Println("Error converting id to int64: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	idP := c.Param("poll_id")
-	pollID, err := strconv.ParseInt(idP, 10, 32)
-	if err != nil {
-		log.Println("Error converting id to int64: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	pollList, err := voteRepo.GetVoterDataOnPoll(voterID, pollID)
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-
-	c.JSON(http.StatusOK, pollList)
-}
-
-
 func AddVoteHandler(c *gin.Context) {
 	var voteToAdd votes.VoteData
-
-	idS := c.Param("voter_id")
-	voterID, err := strconv.ParseInt(idS, 10, 32)
-	if err != nil {
-		log.Println("Error converting id to int64: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	idP := c.Param("poll_id")
-	pollID, err := strconv.ParseInt(idP, 10, 32)
-	if err != nil {
-		log.Println("Error converting id to int64: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
 	if err := c.ShouldBindJSON(&voteToAdd); err != nil {
 		log.Println("Error binding JSON: ", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	voteToAdd.VoterID = voterID
-	voteToAdd.PollID = pollID
+	voterRepo, err := voter.New()
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
+
+	voter, err := voterRepo.GetItem(voteToAdd.VoterID)
+	if voter.Id == 0 {
+		log.Println("User does not exist: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	pollRepo, err := poll.New()
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	poll, err := pollRepo.GetItem(voteToAdd.PollID)
+	if err != nil  {
+		log.Println("Poll does not exist: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	voteRepo, err := votes.NewVotes()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
-	}
-	fmt.Println("Adding Data")
-	err = voteRepo.AddItem(voteToAdd)
-	if err != nil {
-		fmt.Println("Error: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
-	c.JSON(http.StatusOK, voteToAdd)
+	for _, selection := range poll.Selections {
+		fmt.Println("check selection: ", selection)
+		if selection == voteToAdd.Selection {
+			fmt.Println("selection: ", selection)
+			err = voteRepo.AddItem(voteToAdd)
+			if err != nil {
+				fmt.Println("Error: ", err)
+			}
+			c.JSON(http.StatusOK, voteToAdd)
+			return
+		}
+	}
+	c.JSON(http.StatusBadRequest, voteToAdd)
 }
 
 
@@ -335,23 +184,39 @@ func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	r.GET("/voters", GetVotersHandler)
-	r.POST("/voters", AddVoterHandler)
-	r.POST("/voters/:id", AddVoterHandler)
+	voterRepo, err := voter.New()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	pollRepo, err := poll.New()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	votesRepo, err := votes.NewVotes()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+
+
+	r.GET("/voters", voterRepo.GetVotersHandler)
+	r.POST("/voters", voterRepo.AddVoterHandler)
 	r.GET("/voters/:id", GetVotersByIDHandler)
 
-	r.GET("/polls", GetPollsHandler)
-	r.POST("/polls", AddPollHandler)
+	r.GET("/polls", pollRepo.GetPollsHandler)
+	r.POST("/polls", pollRepo.AddPollHandler)
 
-	r.GET("/polls/:id", GetVotesHandler)
-	r.GET("/voters/:id/polls/:poll_id", GetVotesFromVoterOnPollHandler)
-	r.POST("/voters/:id/polls/:poll_id", AddVoteHandler)
+	r.GET("/votes/:id", votesRepo.GetVotesHandler)
+	r.GET("/votes/:id/polls/:poll_id", votesRepo.GetVotesFromVoterOnPollHandler)
+	r.POST("/vote", AddVoteHandler)
 
 	r.GET("/health", healthCheckHandler)
 
-	//We will now show a common way to version an API and add a new
-	//version of an API handler under /v2.  This new API will support
-	//a path parameter to search for todos based on a status
 	//v2 := r.Group("/v2")
 	//v2.GET("/todo", apiHandler.ListSelectTodos)
 

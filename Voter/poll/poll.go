@@ -1,9 +1,12 @@
 package poll
 
 import (
+	"log"
 	"encoding/json"
-	"os"
 	"errors"
+	"drexel.edu/voter/repository"
+	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type PollItem struct {
@@ -19,14 +22,41 @@ type Poll struct {
 	dbFileName string
 }
 
+/////////////////
+///  API
+/////////////////
+func (t *Poll) GetPollsHandler(c *gin.Context) {
+	pollList, err := t.GetAllItems()
+	
+	if err != nil {
+		log.Println("poll failed :", err)
+	}
+
+	c.JSON(http.StatusOK, pollList)
+}
+
+func (t *Poll) AddPollHandler(c *gin.Context) {
+	var pollToAdd PollItem
+	if err := c.ShouldBindJSON(&pollToAdd); err != nil {
+		log.Println("Error binding JSON: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if err := t.AddItem(&pollToAdd); err != nil {
+		log.Println("Error adding item: ", err)
+		c.AbortWithStatus(http.StatusConflict)
+	}
+
+	c.JSON(http.StatusOK, pollToAdd)
+}
+
+/////////////////
+/// Poll Controller
+/////////////////
+
 func New() (*Poll, error) {
 	var dbFile = "./data/poll.json"
-	if _, err := os.Stat(dbFile); err != nil {
-		err := initDB(dbFile)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	poll := &Poll{
 		pollMap:    make(map[int64]PollItem),
@@ -36,27 +66,11 @@ func New() (*Poll, error) {
 	return poll, nil
 }
 
-func initDB(dbFileName string) error {
-	f, err := os.Create(dbFileName)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write([]byte("[]"))
-	if err != nil {
-		return err
-	}
-
-	f.Close()
-
-	return nil
-}
-
 func (t *Poll) AddItem(poll *PollItem) error {
 	err := t.loadDB()
 
 	if err != nil {
-		return errors.New("addpoll() LoadDB failed")
+		log.Println("Load DB Filed createing new:", err)
 	}
 
 	var id = int64(len(t.pollMap))
@@ -81,16 +95,34 @@ func (t *Poll) AddItem(poll *PollItem) error {
 func (t *Poll) GetAllItems() ([]PollItem, error) {
 	err := t.loadDB()
 	if err != nil {
-		return nil, errors.New("GetAllItems() LoadDB failed")
+		return []PollItem{}, errors.New("GetAllItems() LoadDB failed")
 	}
 
 	v := make([]PollItem, 0, len(t.pollMap))
+	if len(t.pollMap) < 1 {
+		log.Println("poll failed :", []PollItem{})
+		return []PollItem{}, nil
+	}
 
 	for _, value := range t.pollMap {
 		v = append(v, value)
 	}
 
 	return v, nil
+}
+
+func (t *Poll) GetItem(pollID int64) (PollItem, error) {
+	err := t.loadDB()
+	if err != nil {
+		return PollItem{}, errors.New("GetAllItems() LoadDB failed")
+	}
+
+	var pollData = t.pollMap[pollID]
+	if pollData.Id != 0 { 
+		log.Println("Poll exist: ", t.pollMap[pollID])
+		return t.pollMap[pollID], nil
+	}
+	return PollItem{}, errors.New("Poll does not exist")
 }
 
 
@@ -104,7 +136,9 @@ func (t *Poll) JsonToPoll(jsonString string) (PollItem, error) {
 	return poll, nil
 }
 
-
+////////////////////
+///  Repository 
+/////////////////////
 func (t *Poll) saveDB() error {
 	var pollList []PollItem
 	for _, item := range t.pollMap {
@@ -114,22 +148,23 @@ func (t *Poll) saveDB() error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(t.dbFileName, data, 0644)
+	repository.SetValueForKey(t.dbFileName, data)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
+
 func (t *Poll) loadDB() error {
-	data, err := os.ReadFile(t.dbFileName)
+	data, err := repository.GetValueForKey(t.dbFileName)
 	if err != nil {
 		return err
 	}
 
 	var pollList []PollItem
-	err = json.Unmarshal(data, &pollList)
+
+	err = json.Unmarshal([]byte(data), &pollList)
 	if err != nil {
 		return err
 	}
@@ -140,4 +175,5 @@ func (t *Poll) loadDB() error {
 
 	return nil
 }
+
 

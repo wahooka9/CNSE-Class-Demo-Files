@@ -1,10 +1,14 @@
 package votes
 
 import (
+	"log"
+	"fmt"
 	"encoding/json"
-	"os"
-	//"fmt"
 	"errors"
+	"strconv"
+	"net/http"
+	"github.com/gin-gonic/gin"
+	"drexel.edu/voter/repository"
 )
 
 type VoteData struct {
@@ -31,6 +35,79 @@ type VotesData struct {
 }
 
 
+/////////////////
+///  API
+////////////////
+
+func (t *VotesData) GetVoterVotesByID(c *gin.Context) (VoterPollResponsData, error) {
+	idS := c.Param("id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return nil, err
+	}
+
+	voterInfo, err := t.GetItem(voterID)
+	if err != nil {
+		log.Println("Error fetching voters votes: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return nil, err
+	}
+
+	return voterInfo, err
+}
+
+func (t *VotesData) GetVotesHandler(c *gin.Context) {
+	idS := c.Param("id")
+	pollID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	pollInfo, err := t.GetPollItems(pollID)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	c.JSON(http.StatusOK, pollInfo)
+}
+
+func (t *VotesData) GetVotesFromVoterOnPollHandler(c *gin.Context) {
+	idS := c.Param("id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	idP := c.Param("poll_id")
+	pollID, err := strconv.ParseInt(idP, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	pollList, err := t.GetVoterDataOnPoll(voterID, pollID)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	tempMap := make(map[string]interface{})
+	tempMap["voter_id"] = idS
+	tempMap["poll_id"] = idP
+	tempMap["response"] = pollList
+
+	c.JSON(http.StatusOK, tempMap)
+}
+
+//////////////
+///  Votes Controller
+//////////////
 
 func contains(s []int64, e int64) bool {
     for _, a := range s {
@@ -131,7 +208,6 @@ func (t *VotesData) GetVoterDataOnPoll(voter_id int64, poll_id int64) (string, e
 
 func (t *VotesData) GetItem(id int64) (VoterPollResponsData, error) {
 	err := t.loadDB()
-
 	if err != nil {
 		return VoterPollResponsData{}, errors.New("GetItem() LoadDB failed")
 	}
@@ -140,18 +216,12 @@ func (t *VotesData) GetItem(id int64) (VoterPollResponsData, error) {
 		return t.FullVoterResultsData[id], nil
 	}
 
-	return VoterPollResponsData{}, errors.New("Voter not found")
+	return VoterPollResponsData{}, nil
 }
 
 
 func NewVotes() (*VotesData, error) {
 	var dbFile = "./data/votes.json"
-	if _, err := os.Stat(dbFile); err != nil {
-		err := initDB(dbFile)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	votes := &VotesData{
 		VoterVotedData:    make(HasVotedData),
@@ -163,51 +233,43 @@ func NewVotes() (*VotesData, error) {
 	return votes, nil
 }
 
-
-
-
-func initDB(dbFileName string) error {
-	f, err := os.Create(dbFileName)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write([]byte("{}"))
-	if err != nil {
-		return err
-	}
-
-	f.Close()
-
-	return nil
-}
-
+/////////////////
+///  Repository
+////////////////
 
 func (t *VotesData) saveDB() error {
 	temp := VotesData(*t)
+	fmt.Println(temp)
 	data, err := json.MarshalIndent(temp, "", "  ")
 	if err != nil {
+		log.Println("Error marshaling Json: ", err)
 		return err
 	}
-	err = os.WriteFile(t.DBFileName, data, 0644)
+fmt.Println(data)
+	repository.SetValueForKey(t.DBFileName, data)
 	if err != nil {
+		log.Println("Error setting value in redis: ", err)
 		return err
 	}
-
 	return nil
 }
+
 
 func (t *VotesData) loadDB() error {
-	data, err := os.ReadFile(t.DBFileName)
-	
+	data, err := repository.GetValueForKey(t.DBFileName)
 	if err != nil {
+		log.Println("Error fetching redis values: ", err)
 		return err
 	}
 
-	err = json.Unmarshal(data, t)
+	err = json.Unmarshal([]byte(data), t)
 	if err != nil {
-		return err
+		log.Println("Error unmarsheling data: ", err)
+		t, err = NewVotes()
+		//return err
 	}
 
 	return nil
 }
+
+

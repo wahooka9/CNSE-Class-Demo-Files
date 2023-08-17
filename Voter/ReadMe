@@ -5,16 +5,12 @@ go get -u github.com/gorilla/mux
 
 To add a voter
 curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe" }' http://localhost:8080/voters
-curl -X POST -H "Content-Type: application/json" -d '{"name":"John Doe" }' http://localhost:8080/voters/12
-
-The voters/{id} will force the ID to the parameter provided.  if no ID is provided then it auto assigns an ID
-
 
 Add a poll
 curl -X POST -H "Content-Type: application/json" -d '{"name":"What Toppings do you prefer?", "selection":["Bacon", "Lettuce", "Tomato"]}' http://localhost:8080/polls
 
 Have a user Vote
-curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/votes 
+curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/vote
 
 Get all of the voters
 http://localhost:8080/voters

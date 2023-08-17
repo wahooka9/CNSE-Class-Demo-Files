@@ -1,9 +1,12 @@
 package voter
 
 import (
+	"log"
 	"encoding/json"
-	//"os"
 	"errors"
+	"net/http"
+	"strconv"
+	"github.com/gin-gonic/gin"
 	"drexel.edu/voter/repository"
 )
 
@@ -21,13 +24,6 @@ type Voter struct {
 
 func New() (*Voter, error) {
 	var dbFile = "./data/voter.json"
-	// if _, err := os.Stat(dbFile); err != nil {
-	// 	err := initDB(dbFile)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
 	voter := &Voter{
 		voterMap:    make(map[int64]VoterItem),
 		dbFileName: dbFile,
@@ -35,6 +31,57 @@ func New() (*Voter, error) {
 
 	return voter, nil
 }
+
+//////////////////////
+///  API 
+//////////////////////
+
+func (t *Voter) GetVotersHandler(c *gin.Context) {
+	voterList, err := t.GetAllItems()
+	if err != nil {
+		log.Println("Error fetching voters: ", err)
+		c.JSON(http.StatusConflict, voterList)
+	}
+
+	c.JSON(http.StatusOK, voterList)
+}
+
+func (t *Voter) AddVoterHandler(c *gin.Context) {
+	var voterToAdd VoterItem
+
+	if err := c.ShouldBindJSON(&voterToAdd); err != nil {
+		log.Println("Error binding JSON: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if err := t.AddItem(&voterToAdd); err != nil {
+		log.Println("Error adding item: ", err)
+		c.AbortWithStatus(http.StatusConflict)
+	}
+
+	c.JSON(http.StatusOK, voterToAdd)
+}
+
+func (t *Voter) GetVoterByID(c *gin.Context) (VoterItem, error) {
+	idS := c.Param("id")
+	voterID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		return VoterItem{}, err
+	}
+
+	voterInfo, err := t.GetItem(voterID)
+	if err != nil {
+		log.Println("Error fetching voter: ", err)
+		return VoterItem{}, err
+	}
+	return voterInfo, nil
+}
+
+/////////////////////
+///  Controller Methods
+/////////////////////
 
 func (t *Voter) AddItem(voter *VoterItem) error {
 	err := t.loadDB()
@@ -92,7 +139,7 @@ func (t *Voter) GetItem(id int64) (VoterItem, error) {
 	if _, ok := t.voterMap[id]; ok {
 		return t.voterMap[id], nil
 	}
-	return VoterItem{}, errors.New("Voter not found")
+	return VoterItem{}, nil
 }
 
 func (t *Voter) JsonToVoter(jsonString string) (VoterItem, error) {
@@ -105,6 +152,9 @@ func (t *Voter) JsonToVoter(jsonString string) (VoterItem, error) {
 	return voter, nil
 }
 
+////////////////
+/// Repository 
+////////////////
 func (t *Voter) saveDB() error {
 	var voterList []VoterItem
 	for _, item := range t.voterMap {
@@ -127,7 +177,7 @@ func (t *Voter) loadDB() error {
 	if err != nil {
 		return err
 	}
-	//print(string(data))
+
 	var voterList []VoterItem
 
 	err = json.Unmarshal([]byte(data), &voterList)
@@ -142,57 +192,4 @@ func (t *Voter) loadDB() error {
 	return nil
 }
 
-/*
-func initDB(dbFileName string) error {
-	f, err := os.Create(dbFileName)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write([]byte("[]"))
-	if err != nil {
-		return err
-	}
-
-	f.Close()
-
-	return nil
-}
-
-func (t *Voter) saveDB() error {
-	var voterList []VoterItem
-	for _, item := range t.voterMap {
-		voterList = append(voterList, item)
-	}
-	data, err := json.MarshalIndent(voterList, "", "  ")
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile(t.dbFileName, data, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (t *Voter) loadDB() error {
-	data, err := os.ReadFile(t.dbFileName)
-	if err != nil {
-		return err
-	}
-
-	var voterList []VoterItem
-	err = json.Unmarshal(data, &voterList)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range voterList {
-		t.voterMap[item.Id] = item
-	}
-
-	return nil
-}
-*/
 	

@@ -51,11 +51,13 @@ func GetValueForKey(key string) (string, error) {
     if err != nil {
         fmt.Println(err)
     }
-
+fmt.Println("halfway work" , key)
     ctx := context.Background()
     val, err := LocalReddisCilent.Get(ctx, key).Result()
     if err != nil {
-        panic(err)
+        fmt.Println(err)
+        //panic(err)
+        
     }
     fmt.Println(key, val)
     fmt.Println("work work")
