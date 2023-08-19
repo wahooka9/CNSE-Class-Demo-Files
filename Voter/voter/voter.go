@@ -41,6 +41,7 @@ func (t *Voter) GetVotersHandler(c *gin.Context) {
 	if err != nil {
 		log.Println("Error fetching voters: ", err)
 		c.JSON(http.StatusConflict, voterList)
+		return
 	}
 
 	c.JSON(http.StatusOK, voterList)
@@ -87,7 +88,8 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 	err := t.loadDB()
 
 	if err != nil {
-		return errors.New("addVoter() LoadDB failed")
+		log.Println("addVoter() LoadDB failed: ", err)
+		t.voterMap = DbMap{}
 	}
 
 	var id = int64(len(t.voterMap))
@@ -119,7 +121,7 @@ func (t *Voter) AddItem(voter *VoterItem) error {
 func (t *Voter) GetAllItems() ([]VoterItem, error) {
 	err := t.loadDB()
 	if err != nil {
-		return nil, errors.New("GetAllItems() LoadDB failed")
+		return []VoterItem{}, errors.New("GetAllItems() LoadDB failed")
 	}
 
 	v := make([]VoterItem, 0, len(t.voterMap))
