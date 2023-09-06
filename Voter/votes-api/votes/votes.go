@@ -2,13 +2,16 @@ package votes
 
 import (
 	"log"
+	//"os"
 	"fmt"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"drexel.edu/voter/repository"
+	"github.com/go-resty/resty/v2"
+	"drexel.edu/votes-api/repository"
+	"drexel.edu/votes-api/schema"
 )
 
 type VoteData struct {
@@ -55,6 +58,16 @@ func (t *VotesData) GetVoterVotesByID(c *gin.Context) (VoterPollResponsData, err
 		return nil, err
 	}
 
+	var test = "http://localhost:2080" + "/voters"
+	var pub []schema.VoterItem
+	var apiClient = resty.New()
+	_, err = apiClient.R().SetResult(&pub).Get(test)
+	if err != nil {
+		emsg := "Could not get publication from API: (" + test + ")" + err.Error()
+		c.JSON(http.StatusNotFound, gin.H{"error": emsg})
+		return nil, err
+	}
+
 	return voterInfo, err
 }
 
@@ -72,18 +85,37 @@ func (t *VotesData) GetVotesHandler(c *gin.Context) {
 		fmt.Println("Error: ", err)
 	}
 
+ //    voterURL := os.Getenv("VOTER_URL")
+ //    fmt.Println(voterURL)
+ //    if voterURL == "" {
+ //        voterURL = "host.docker.internal:2080"
+ //    } else {
+ //    	voterURL = "http://" + voterURL
+ //    }
+	// var votetest =  voterURL + "/voters"
+	// var pub = [] schema.VoterItem {}
+	// fmt.Println("list: ", pub)
+	// var apiClient = resty.New()
+	// _, err = apiClient.R().SetResult(&pub).Get(votetest)
+	// fmt.Println("list: ", pub)
+	// if err != nil {
+	// 	emsg := "Could not get publication from API: (" + voterURL + ")" + err.Error()
+	// 	c.JSON(http.StatusNotFound, gin.H{"error": emsg})
+	// 	return
+	// }
+
 	c.JSON(http.StatusOK, pollInfo)
 }
 
 func (t *VotesData) GetVotesFromVoterOnPollHandler(c *gin.Context) {
 	idS := c.Param("id")
-	voterID, err := strconv.ParseInt(idS, 10, 32)
+	_, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
 		log.Println("Error converting id to int64: ", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
+/*
 	idP := c.Param("poll_id")
 	pollID, err := strconv.ParseInt(idP, 10, 32)
 	if err != nil {
@@ -101,8 +133,8 @@ func (t *VotesData) GetVotesFromVoterOnPollHandler(c *gin.Context) {
 	tempMap["voter_id"] = idS
 	tempMap["poll_id"] = idP
 	tempMap["response"] = pollList
-
-	c.JSON(http.StatusOK, tempMap)
+*/
+	c.JSON(http.StatusOK, "")
 }
 
 //////////////
@@ -155,6 +187,7 @@ func (t *VotesData) AddItem(voter VoteData) error {
 
 		t.VoterVotedData[voter.PollID] = append(t.VoterVotedData[voter.PollID], voter.VoterID)
 		t.FullPollResultsData[voter.PollID][voter.Selection] = append(t.FullPollResultsData[voter.PollID][voter.Selection], voter.VoterID)
+		
 	}
 
 	dberr := t.saveDB()
@@ -190,8 +223,8 @@ func (t *VotesData) GetPollItems(id int64) (ResponsesVoterData, error) {
 }
 
 func (t *VotesData) GetVoterDataOnPoll(voter_id int64, poll_id int64) (string, error) {
-	err := t.loadDB()
-
+	//err := t.loadDB()
+/*
 	if err != nil {
 		return "", errors.New("GetItem() LoadDB failed")
 	}
@@ -199,7 +232,7 @@ func (t *VotesData) GetVoterDataOnPoll(voter_id int64, poll_id int64) (string, e
 	if _, ok := t.FullVoterResultsData[voter_id][poll_id]; ok {
 		return t.FullVoterResultsData[voter_id][poll_id], nil
 	}
-
+*/
 	return "", errors.New("Voter not found")
 }
 

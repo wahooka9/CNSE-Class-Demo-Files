@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"github.com/gin-gonic/gin"
-	"drexel.edu/voter/repository"
+	"drexel.edu/voter-api/repository"
 )
 
 type VoterItem struct {

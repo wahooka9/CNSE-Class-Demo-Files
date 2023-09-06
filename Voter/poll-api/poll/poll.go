@@ -4,7 +4,7 @@ import (
 	"log"
 	"encoding/json"
 	"errors"
-	"drexel.edu/voter/repository"
+	"drexel.edu/poll-api/repository"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
