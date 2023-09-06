@@ -4,7 +4,8 @@ import (
 	"log"
 	"encoding/json"
 	"errors"
-	"drexel.edu/voter/repository"
+	"strconv"
+	"drexel.edu/poll-api/repository"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -35,6 +36,25 @@ func (t *Poll) GetPollsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, pollList)
 }
 
+func (t *Poll) GetPollHandler(c *gin.Context) {
+	idS := c.Param("id")
+	pollID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	polldata, err := t.GetItem(pollID)
+	if err != nil {
+		log.Println("poll failed :", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	c.JSON(http.StatusOK, polldata)
+}
+
 func (t *Poll) AddPollHandler(c *gin.Context) {
 	var pollToAdd PollItem
 	if err := c.ShouldBindJSON(&pollToAdd); err != nil {
@@ -50,6 +70,7 @@ func (t *Poll) AddPollHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, pollToAdd)
 }
+
 
 /////////////////
 /// Poll Controller

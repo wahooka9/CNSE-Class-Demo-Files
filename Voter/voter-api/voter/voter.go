@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"strconv"
 	"github.com/gin-gonic/gin"
-	"drexel.edu/voter/repository"
+	"drexel.edu/voter-api/repository"
 )
 
 type VoterItem struct {
 	Id     int64    `json:"id"`
 	Name  string `json:"name"`
+	Votes  string `json:"votes,omitempty"`
 }
 
 type DbMap map[int64]VoterItem

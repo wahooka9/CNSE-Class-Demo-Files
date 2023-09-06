@@ -2,13 +2,16 @@ package votes
 
 import (
 	"log"
+	//"os"
 	"fmt"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"drexel.edu/voter/repository"
+	//"github.com/go-resty/resty/v2"
+	"drexel.edu/votes-api/repository"
+	//"drexel.edu/votes-api/schema"
 )
 
 type VoteData struct {
@@ -39,23 +42,23 @@ type VotesData struct {
 ///  API
 ////////////////
 
-func (t *VotesData) GetVoterVotesByID(c *gin.Context) (VoterPollResponsData, error) {
+func (t *VotesData) GetVoterVotesByID(c *gin.Context) {
 	idS := c.Param("id")
 	voterID, err := strconv.ParseInt(idS, 10, 32)
 	if err != nil {
 		log.Println("Error converting id to int64: ", err)
 		c.AbortWithStatus(http.StatusBadRequest)
-		return nil, err
+		return 
 	}
 
 	voterInfo, err := t.GetItem(voterID)
 	if err != nil {
 		log.Println("Error fetching voters votes: ", err)
 		c.AbortWithStatus(http.StatusBadRequest)
-		return nil, err
+		return
 	}
 
-	return voterInfo, err
+	c.JSON(http.StatusOK, voterInfo)
 }
 
 func (t *VotesData) GetVotesHandler(c *gin.Context) {
@@ -74,6 +77,24 @@ func (t *VotesData) GetVotesHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, pollInfo)
 }
+
+func (t *VotesData) GetVoterVotesHandler(c *gin.Context) {
+	idS := c.Param("id")
+	pollID, err := strconv.ParseInt(idS, 10, 32)
+	if err != nil {
+		log.Println("Error converting id to int64: ", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	pollInfo, err := t.GetPollItems(pollID)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	c.JSON(http.StatusOK, pollInfo)
+}
+
 
 func (t *VotesData) GetVotesFromVoterOnPollHandler(c *gin.Context) {
 	idS := c.Param("id")
@@ -155,6 +176,7 @@ func (t *VotesData) AddItem(voter VoteData) error {
 
 		t.VoterVotedData[voter.PollID] = append(t.VoterVotedData[voter.PollID], voter.VoterID)
 		t.FullPollResultsData[voter.PollID][voter.Selection] = append(t.FullPollResultsData[voter.PollID][voter.Selection], voter.VoterID)
+		
 	}
 
 	dberr := t.saveDB()
@@ -200,10 +222,8 @@ func (t *VotesData) GetVoterDataOnPoll(voter_id int64, poll_id int64) (string, e
 		return t.FullVoterResultsData[voter_id][poll_id], nil
 	}
 
-	return "", errors.New("Voter not found")
+	return "", errors.New("Data not found")
 }
-
-
 
 
 func (t *VotesData) GetItem(id int64) (VoterPollResponsData, error) {
