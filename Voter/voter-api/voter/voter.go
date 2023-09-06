@@ -13,6 +13,7 @@ import (
 type VoterItem struct {
 	Id     int64    `json:"id"`
 	Name  string `json:"name"`
+	Votes  string `json:"votes,omitempty"`
 }
 
 type DbMap map[int64]VoterItem

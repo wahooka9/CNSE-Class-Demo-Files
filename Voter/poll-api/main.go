@@ -44,6 +44,7 @@ func main() {
 	}
 
 	r.GET("/polls", pollRepo.GetPollsHandler)
+	r.GET("/polls/:id", pollRepo.GetPollHandler)
 	r.POST("/polls", pollRepo.AddPollHandler)
 
 	serverPath := fmt.Sprintf("%s:%d", hostFlag, portFlag)

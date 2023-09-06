@@ -2,19 +2,19 @@ package main
 
 import (
 	"fmt"
-	//"log"
-	//"net/http"
+	"log"
+	"net/http"
 	"flag"
 	"os"
-	//"strconv"
+	"strconv"
 	//"sync"
 	//"time"
+	//"errors"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	//"github.com/go-resty/resty/v2"
-	//"drexel.edu/voter/voter"
-	//"drexel.edu/voter/poll"
+	"github.com/go-resty/resty/v2"
 	"drexel.edu/votes-api/votes"
+	"drexel.edu/votes-api/schema"
 )
 
 var (
@@ -30,7 +30,7 @@ func processCmdLineFlags() {
 	flag.Parse()
 }
 
-/*
+
 func AddVoteHandler(c *gin.Context) {
 	var voteToAdd votes.VoteData
 	if err := c.ShouldBindJSON(&voteToAdd); err != nil {
@@ -38,29 +38,45 @@ func AddVoteHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-
-	voterRepo, err := voter.New()
+	fmt.Println(voteToAdd)
+    voterURL := os.Getenv("VOTER_URL")
+    
+    if voterURL == "" {
+        voterURL = "host.docker.internal:2080"
+    } else {
+    	voterURL = "http://" + voterURL
+    }
+	var votetest =  voterURL + "/voters/" + strconv.Itoa(int(voteToAdd.VoterID))
+	fmt.Println(voterURL)
+	var pub = schema.VoterItem {}
+	var apiClient = resty.New()
+	_, err := apiClient.R().SetResult(&pub).Get(votetest)
 	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+		emsg := "Could not get voter from API: (" + voterURL + ")" + err.Error()
+		c.JSON(http.StatusNotFound, gin.H{"error": emsg})
+		return
 	}
-
-	voter, err := voterRepo.GetItem(voteToAdd.VoterID)
-	if voter.Id == 0 {
-		log.Println("User does not exist: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
+	fmt.Println(pub)
+	if pub.Id < 1 {
+		c.JSON(http.StatusNotFound, "Voter not found")
 		return
 	}
 
-	pollRepo, err := poll.New()
+    pollURL := os.Getenv("POLL_URL")
+    
+    if pollURL == "" {
+        pollURL = "host.docker.internal:3080"
+    } else {
+    	pollURL = "http://" + pollURL
+    }
+	var pollTest =  pollURL + "/polls/" + strconv.Itoa(int(voteToAdd.PollID))
+	fmt.Println(pollURL)
+	var poll = schema.PollItem {}
+	_, err = apiClient.R().SetResult(&poll).Get(pollTest)
+	fmt.Println(poll)
 	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	poll, err := pollRepo.GetItem(voteToAdd.PollID)
-	if err != nil  {
-		log.Println("Poll does not exist: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
+		emsg := "Could not get voter from API: (" + voterURL + ")" + err.Error()
+		c.JSON(http.StatusNotFound, gin.H{"error": emsg})
 		return
 	}
 
@@ -86,7 +102,6 @@ func AddVoteHandler(c *gin.Context) {
 	c.JSON(http.StatusBadRequest, voteToAdd)
 }
 
-*/
 
 func main() {
 
@@ -100,10 +115,11 @@ func main() {
 		os.Exit(1)
 	}
 
-
+	r.GET("/votes/voter/:id", votesRepo.GetVoterVotesByID)
+	
 	r.GET("/votes/:id", votesRepo.GetVotesHandler)
 	r.GET("/votes/:id/polls/:poll_id", votesRepo.GetVotesFromVoterOnPollHandler)
-	//r.POST("/vote", AddVoteHandler)
+	r.POST("/vote", AddVoteHandler)
 
 	serverPath := fmt.Sprintf("%s:%d", hostFlag, portFlag)
 	r.Run(serverPath)

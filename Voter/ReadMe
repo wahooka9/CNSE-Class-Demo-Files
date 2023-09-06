@@ -11,6 +11,7 @@ curl -X POST -H "Content-Type: application/json" -d '{"name":"What Toppings do y
 
 Have a user Vote
 curl -X POST -H "Content-Type: application/json" -d '{"voters_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:8080/vote
+curl -X POST -H "Content-Type: application/json" -d '{"voter_id":1,"poll_id":1, "response":"Bacon"}' http://localhost:1080/vote
 
 Get all of the voters
 http://localhost:8080/voters

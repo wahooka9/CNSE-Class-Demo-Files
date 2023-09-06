@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"flag"
 	"os"
+	"strconv"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"drexel.edu/voter-api/voter"
@@ -40,24 +41,14 @@ func GetVotersByIDHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return 
 	}
-/*
-	votesRepo, err := votes.NewVotes()
-	if err != nil {
-		log.Println("Error creating votes object: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
+	if voterInto.Id == 0 {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
 	}
+	// Better set by an env variable -  
+	voterInto.Votes = "http://localhost:1080/votes/voter/" + strconv.Itoa(int(voterInto.Id))
 
-	voterVotes, err := votesRepo.GetVoterVotesByID(c)
-	if err != nil {
-		log.Println("Error getting votes: ", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-	}
-*/
-	tempMap := make(map[string]interface{})
-	tempMap["VoterInfo"] = voterInto
-//	tempMap["Votes"] = voterVotes
-
-	c.JSON(http.StatusOK, tempMap)
+	c.JSON(http.StatusOK, voterInto)
 }
 
 
